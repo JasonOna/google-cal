@@ -1,43 +1,27 @@
 from datetime import datetime, timedelta
-from pathlib import Path
 
 import html2text
-from googleapiclient.discovery import build
 
-from google_calendar_auth import GoogleCalendarAuth
-
-SCOPES = ["https://www.googleapis.com/auth/calendar.events"]
-TOKEN_FILE = Path("token.json")
-CLIENT_SECRETS_FILE = "client_secret.json"
-
-creds = None
 HTML_TO_MARKDOWN = html2text.HTML2Text()
 HTML_TO_MARKDOWN.body_width = 0
 
 def description_to_markdown(description):
     return HTML_TO_MARKDOWN.handle(description).strip()
 
-auth = GoogleCalendarAuth(TOKEN_FILE, CLIENT_SECRETS_FILE, SCOPES)
-creds = auth.get_credentials()
 
-service = build("calendar", "v3", credentials=creds)
+def get_events(service, days_from_today: int):
+    # Fetch events from a window ending today in the local timezone.
+    today = datetime.now().astimezone().replace(hour=0, minute=0, second=0, microsecond=0)
+    start_day = today - timedelta(days=days_from_today)
 
-# Fetch events from yesterday in the local timezone.
-today = datetime.now().astimezone().replace(hour=0, minute=0, second=0, microsecond=0)
-yesterday = today - timedelta(days=1)
-tomorrow = today + timedelta(days=1)
-friday = today - timedelta(days=2)
-
-events_result = service.events().list(
-    calendarId='primary',
-    timeMin=friday.isoformat(),
-    timeMax=yesterday.isoformat(),
-    maxResults=50,
-    singleEvents=True,
-    orderBy='startTime'
-).execute()
-
-events = events_result.get('items', [])
+    return service.events().list(
+        calendarId='primary',
+        timeMin=start_day.isoformat(),
+        timeMax=today.isoformat(),
+        maxResults=50,
+        singleEvents=True,
+        orderBy='startTime'
+    ).execute()
 
 def print_event_details(event):
     raw_start = event['start'].get('dateTime')
@@ -46,9 +30,9 @@ def print_event_details(event):
     start = ''
     end = ''
     if raw_start:
-      start = datetime.fromisoformat(raw_start.replace("Z", "+00:00")).astimezone().strftime("%-I:%M %p")
+        start = datetime.fromisoformat(raw_start.replace("Z", "+00:00")).astimezone().strftime("%-I:%M %p")
     if raw_end:
-      end = datetime.fromisoformat(raw_end.replace("Z", "+00:00")).astimezone().strftime("%-I:%M %p")
+        end = datetime.fromisoformat(raw_end.replace("Z", "+00:00")).astimezone().strftime("%-I:%M %p")
 
     print(f"* {event.get('summary', '(no title)')} {start} {end}")
 
@@ -57,9 +41,18 @@ def print_event_details(event):
         print(f"\t* Description:\n{markdown_description}")
     print()
 
-if not events:
-    print('No events found for yesterday.')
-else:
-    print('Yesterday\'s events:')
+
+def print_events(events):
+    if not events:
+        print('No events found for yesterday.')
+        return
+
+    print('Previous events:')
     for event in events:
         print_event_details(event)
+
+
+def run_export(service, days_from_today=1):
+    events_result = get_events(service, days_from_today)
+    events = events_result.get('items', [])
+    print_events(events)

@@ -13,7 +13,7 @@ if [ ! -d "$VENV_DIR" ]; then
 fi
 
 if [ -f "requirements.txt" ]; then
-	"$PYTHON_BIN" -m pip install -r requirements.txt
+	"$PYTHON_BIN" -m pip install -q -r requirements.txt
 fi
 
 "$PYTHON_BIN" "$@"
