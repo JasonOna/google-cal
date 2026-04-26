@@ -9,4 +9,4 @@ mkdir -p "$OUT_DIR"
 
 OUT_FILE="$OUT_DIR/$(date +%F).txt"
 
-./run.sh getToken.py > "$OUT_FILE" 2>&1
+./run.sh calendar_export.py > "$OUT_FILE" 2>&1

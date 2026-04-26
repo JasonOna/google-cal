@@ -2,10 +2,9 @@ from datetime import datetime, timedelta
 from pathlib import Path
 
 import html2text
-from google.auth.transport.requests import Request
-from google.oauth2.credentials import Credentials
-from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
+
+from google_calendar_auth import GoogleCalendarAuth
 
 SCOPES = ["https://www.googleapis.com/auth/calendar.events"]
 TOKEN_FILE = Path("token.json")
@@ -18,20 +17,8 @@ HTML_TO_MARKDOWN.body_width = 0
 def description_to_markdown(description):
     return HTML_TO_MARKDOWN.handle(description).strip()
 
-if TOKEN_FILE.exists():
-    creds = Credentials.from_authorized_user_file(TOKEN_FILE, SCOPES)
-
-if not creds or not creds.valid:
-    if creds and creds.expired and creds.refresh_token:
-        creds.refresh(Request())
-    else:
-        flow = InstalledAppFlow.from_client_secrets_file(
-            CLIENT_SECRETS_FILE,
-            SCOPES
-        )
-        creds = flow.run_local_server(port=0)
-
-    TOKEN_FILE.write_text(creds.to_json())
+auth = GoogleCalendarAuth(TOKEN_FILE, CLIENT_SECRETS_FILE, SCOPES)
+creds = auth.get_credentials()
 
 service = build("calendar", "v3", credentials=creds)
 
@@ -51,7 +38,6 @@ events_result = service.events().list(
 ).execute()
 
 events = events_result.get('items', [])
-
 
 def print_event_details(event):
     raw_start = event['start'].get('dateTime')
