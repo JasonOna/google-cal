@@ -1,6 +1,6 @@
 # Google Calendar Export
 
-This repository exports Google Calendar events to plain-text files under `outputs/`. The main runner fetches one day at a time, converts any HTML description content to Markdown, and prints the result to stdout. The shell wrapper can backfill missing daily exports.
+This repository exports Google Calendar events to plain-text files under `outputs/`. The main runner fetches one day at a time, converts any HTML description content to Markdown, and prints the result to stdout. The nightly wrapper can backfill missing daily exports and now bootstraps the virtualenv once per run.
 
 ## What it does
 
@@ -15,8 +15,7 @@ This repository exports Google Calendar events to plain-text files under `output
 - `calendar_export_runner.py`: Python entry point for a single export run.
 - `calendar_export.py`: Event fetching and formatting logic.
 - `google_calendar_auth.py`: OAuth token handling and refresh flow.
-- `run.sh`: Creates a virtual environment if needed, installs dependencies, and runs Python.
-- `nightly_export.sh`: Backfills daily exports into `outputs/`.
+- `nightly_export.sh`: Creates the virtualenv once, installs dependencies once, and backfills daily exports into `outputs/`.
 - `outputs/`: Generated export files named by date, such as `2026-04-25.txt`.
 
 ## Requirements
@@ -25,10 +24,11 @@ This repository exports Google Calendar events to plain-text files under `output
 - A Google Cloud OAuth client secret file named `client_secret.json`
 - A writable `token.json` file for the cached OAuth token
 
-Install dependencies with:
+Create the virtualenv and install dependencies once with:
 
 ```bash
-./run.sh -m pip install -r requirements.txt
+python3 -m venv .venv
+.venv/bin/python3 -m pip install -r requirements.txt
 ```
 
 ## Setup
@@ -43,24 +43,24 @@ Install dependencies with:
 Run the default export for yesterday:
 
 ```bash
-./run.sh calendar_export_runner.py
+.venv/bin/python3 calendar_export_runner.py
 ```
 
 Export a different day by passing the number of days back from today:
 
 ```bash
-./run.sh calendar_export_runner.py 2
+.venv/bin/python3 calendar_export_runner.py 2
 ```
 
 Redirect output into a dated file:
 
 ```bash
-./run.sh calendar_export_runner.py 1 > outputs/2026-04-25.txt
+.venv/bin/python3 calendar_export_runner.py 1 > outputs/2026-04-25.txt
 ```
 
 ## Backfilling exports
 
-The `nightly_export.sh` script checks the newest file in `outputs/` and fills in any missing days up to yesterday. It is designed to be run on macOS because it uses `date -j` and `date -v`.
+The `nightly_export.sh` script checks the newest file in `outputs/`, creates the Python environment once, and fills in any missing days up to yesterday. It is designed to be run on macOS because it uses `date -j` and `date -v`.
 
 ```bash
 ./nightly_export.sh

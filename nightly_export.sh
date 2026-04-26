@@ -4,6 +4,17 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
+VENV_DIR=".venv"
+PYTHON_BIN="$SCRIPT_DIR/$VENV_DIR/bin/python3"
+
+if [ ! -d "$VENV_DIR" ]; then
+    python3 -m venv "$VENV_DIR"
+fi
+
+if [ -f "requirements.txt" ]; then
+    "$PYTHON_BIN" -m pip install -q -r requirements.txt
+fi
+
 OUT_DIR="$SCRIPT_DIR/outputs"
 mkdir -p "$OUT_DIR"
 
@@ -26,6 +37,6 @@ for ((i = DAYS_FROM_TODAY; i >= 1; i--)); do
     OUT_FILE="$OUT_DIR/${EXPORT_DATE}.txt"
     if [ ! -f "$OUT_FILE" ]; then
         echo "Exporting events for $EXPORT_DATE..."
-        ./run.sh calendar_export_runner.py "$i" > "$OUT_FILE" 2>&1
+        "$PYTHON_BIN" calendar_export_runner.py "$i" > "$OUT_FILE" 2>&1
     fi
 done
