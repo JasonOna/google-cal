@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta
 from pathlib import Path
 
+import html2text
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
@@ -11,6 +12,11 @@ TOKEN_FILE = Path("token.json")
 CLIENT_SECRETS_FILE = "client_secret.json"
 
 creds = None
+HTML_TO_MARKDOWN = html2text.HTML2Text()
+HTML_TO_MARKDOWN.body_width = 0
+
+def description_to_markdown(description):
+    return HTML_TO_MARKDOWN.handle(description).strip()
 
 if TOKEN_FILE.exists():
     creds = Credentials.from_authorized_user_file(TOKEN_FILE, SCOPES)
@@ -32,11 +38,13 @@ service = build("calendar", "v3", credentials=creds)
 # Fetch events from yesterday in the local timezone.
 today = datetime.now().astimezone().replace(hour=0, minute=0, second=0, microsecond=0)
 yesterday = today - timedelta(days=1)
+tomorrow = today + timedelta(days=1)
+friday = today - timedelta(days=2)
 
 events_result = service.events().list(
     calendarId='primary',
-    timeMin=yesterday.isoformat(),
-    timeMax=today.isoformat(),
+    timeMin=friday.isoformat(),
+    timeMax=yesterday.isoformat(),
     maxResults=50,
     singleEvents=True,
     orderBy='startTime'
@@ -46,28 +54,21 @@ events = events_result.get('items', [])
 
 
 def print_event_details(event):
-    start = event['start'].get('dateTime', event['start'].get('date'))
-    end = event['end'].get('dateTime', event['end'].get('date'))
-    attendees = ', '.join(
-        attendee.get('email', 'unknown') for attendee in event.get('attendees', [])
-    )
+    raw_start = event['start'].get('dateTime')
+    raw_end = event['end'].get('dateTime')
 
-    print(f"Title: {event.get('summary', '(no title)')}")
-    print(f"Start: {start}")
-    print(f"End: {end}")
-    print(f"Status: {event.get('status', 'unknown')}")
+    start = ''
+    end = ''
+    if raw_start:
+      start = datetime.fromisoformat(raw_start.replace("Z", "+00:00")).astimezone().strftime("%-I:%M %p")
+    if raw_end:
+      end = datetime.fromisoformat(raw_end.replace("Z", "+00:00")).astimezone().strftime("%-I:%M %p")
 
-    if event.get('location'):
-        print(f"Location: {event['location']}")
+    print(f"* {event.get('summary', '(no title)')} {start} {end}")
+
     if event.get('description'):
-        print(f"Description: {event['description']}")
-    if event.get('organizer', {}).get('email'):
-        print(f"Organizer: {event['organizer']['email']}")
-    if attendees:
-        print(f"Attendees: {attendees}")
-    if event.get('htmlLink'):
-        print(f"Link: {event['htmlLink']}")
-    print(f"Event ID: {event.get('id', 'unknown')}")
+        markdown_description = description_to_markdown(event['description'])
+        print(f"\t* Description:\n{markdown_description}")
     print()
 
 if not events:
